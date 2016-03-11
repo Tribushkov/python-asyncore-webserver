@@ -12,6 +12,13 @@ SERVER_NAME = 'My custom http server'
 
 date = rfc822.formatdate(time.time())
 
+RESPONSE_400 = "HTTP/" + HTTP_VERSION + " 400 Bad Request\r\n"
+RESPONSE_400 += "Server: " + SERVER_NAME + "\r\n"
+RESPONSE_400 += "Date: " + str(date) + "\r\n"
+RESPONSE_400 += "Content-Type: text/html; charset=UTF-8\r\n"
+RESPONSE_400 += "Connection: close\r\n\r\n"
+RESPONSE_400 += "<html><head><title>400</title></head><body><h2>Bad Request</h2></body></html>"
+
 RESPONSE_403 = "HTTP/" + HTTP_VERSION + " 403 Forbidden\r\n"
 RESPONSE_403 += "Server: " + SERVER_NAME + "\r\n"
 RESPONSE_403 += "Date: " + str(date) + "\r\n"

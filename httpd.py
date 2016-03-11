@@ -16,25 +16,26 @@ class HTTPHandler(asyncore.dispatcher):
     def handle_read(self):
         request_header = self.recv(4096)
         request_header = urllib.unquote(request_header)
-
         date = rfc822.formatdate(time.time())
 
-        method = request_header[:3]
+        if request_header == '':
+            self.send(RESPONSE_405)
+            self.close()
+            return
 
-        if '?' in request_header:
-            request_header = request_header.split('?')[0]
-            file_path = ROOT_DIR + '/' + request_header[5:]
+        request_type = request_header.splitlines()[0]
+        " ".join(request_type.split())
+
+        chunks = request_type.split(' ')
+        method = chunks[0].lower()
+        http_version = chunks[-1].lower()
+        request_path = request_type[len(method)+1:-len(http_version)-1]
+
+        if 'head' in method or 'get' in method:
+            if '?' in request_path:
+                request_path = request_path.split('?')[0]
+            file_path = ROOT_DIR + '/' + request_path
         else:
-            request_type = ''
-            if request_header[0].lower() == 'g':
-                request_type = 'GET /'
-            if request_header[0].lower() == 'h':
-                request_type = 'HEAD /'
-            if request_header[0].lower() == 'p':
-                request_type = 'POST /'
-            file_path = ROOT_DIR + '/' + request_header[len(request_type):request_header.find('\n')-len(' HTTP/1.1 ')]
-
-        if method == 'POS':
             self.send(RESPONSE_405)
             self.close()
             return
@@ -52,26 +53,26 @@ class HTTPHandler(asyncore.dispatcher):
             self.close()
             return
 
-        file_size = os.path.getsize(file_path)
-        file_type = mimetypes.guess_type(file_path, strict=True)[0]
-
-        if self.validate_path(file_path):
+        if '../' in file_path:
             self.send(RESPONSE_403)
             self.close()
             return
+
+        file_size = os.path.getsize(file_path)
+        file_type = mimetypes.guess_type(file_path, strict=True)[0]
+
+        response = ''
+        response += "HTTP/" + HTTP_VERSION + " 200 OK\r\n"
+        response += "Server: " + SERVER_NAME + "\r\n"
+        response += "Date: " + str(date) + "\r\n"
+        response += "Content-Type: " + str(file_type) + "\r\n"
+        response += "Content-Length: " + str(file_size) + "\r\n"
+        response += "Connection: close\r\n\r\n"
+        if method == 'head':
+            self.send(response)
+            self.close()
         else:
-            response = ''
-            response += "HTTP/" + HTTP_VERSION + " 200 OK\r\n"
-            response += "Server: " + SERVER_NAME + "\r\n"
-            response += "Date: " + str(date) + "\r\n"
-            response += "Content-Type: " + str(file_type) + "\r\n"
-            response += "Content-Length: " + str(file_size) + "\r\n"
-            response += "Connection: close\r\n\r\n"
-            if method == 'HEA':
-                self.send(response)
-                self.close()
-            else:
-                response += file_text
+            response += file_text
 
         self.data_to_write.append(response)
 
@@ -89,18 +90,6 @@ class HTTPHandler(asyncore.dispatcher):
 
         if not self.writable():
             self.handle_close()
-
-    def validate_path(self, file_path):
-        level = 1
-        chunks = file_path.split('/')
-        for chunk in chunks:
-            if chunk == "..":
-                level -= 1
-            else:
-                level += 1
-            if level < 1:
-                return True
-        return False
 
 
 class HTTPServer(asyncore.dispatcher):
